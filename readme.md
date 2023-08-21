@@ -9,7 +9,7 @@
 wget https://repo.anaconda.com/archive/Anaconda3-2023.07-2-Linux-x86_64.sh
 # 安装最新版本anconda
 sh Anaconda3-2023.07-2-Linux-x86_64.sh
-# 将B榜-工厂智能排产算法赛题 .xlsx与135.87386.py放置同一目录下
+# 将B榜-工厂智能排产算法赛题 .xlsx与main.py放置同一目录下
 nohup python main.py &
 tail -f nohup.out 
 # 24h后会生成结果至out文件夹 并以时间戳命名 该文件夹下包含commit.zip文件
