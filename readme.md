@@ -109,7 +109,6 @@ min(min([双色车间隔得分,石墨电池间隔得分, 小颜色单批内数�
     检查循环结束条件：
         如果所有日期的车型均已加入排产计划，则结束循环
 返回最终排产计划
-![image](https://github.com/jsnuwjl/ALNS-APS/assets/26805891/d4d49f61-849a-45be-a3f7-5d6ab7aef2c9)
 ```
 
 ## 结论
