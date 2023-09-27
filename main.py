@@ -11,7 +11,8 @@ import zipfile
 from cacheout import Cache
 
 seed(0)
-cache = Cache(maxsize=9999999)
+cache = Cache(maxsize=9999)
+ST = time.time()
 
 
 def flatten(nested_list):
@@ -88,7 +89,7 @@ class APS:
                     break
             else:
                 early_stop = 1
-        return score_after, alns.objective(alns.path), alns.result(), plan_id
+        return score_after, alns.objective(alns.path), alns.result(), alns.logs
 
     def run(self):
         n = min(os.cpu_count(), 60)
@@ -102,6 +103,9 @@ class APS:
         path = f"out/{now}"
         os.makedirs(path)
         os.chdir(path)
+        for row in plan_result:
+            for log in row[-1]:
+                print(",".join(log))
         print(plan_result[-1][0])
         print(plan_result[-1][1])
         plan_result[-1][2].to_csv("commit.csv", index=False)
@@ -127,6 +131,7 @@ class ALNS:
         self.car_path = self.init_car_path()
         self.path, self.score = self.generate_path()
         self.early_stop = np.zeros(len(self.path)) + 1
+        self.logs = []
 
     def init_car_path(self):
         car_params = self.df.groupby('计划日期')['车型'].unique().to_list()
@@ -148,13 +153,11 @@ class ALNS:
             out = list(filterfalse(lambda x: x[0] != out[-1][0], out))
             shuffle(out)
             score, path = out[0]
+        early_stop = 0
         while True:
             score_before = len(list(groupby(flatten(path))))
             # single optimize
             for i in range(len(path)):
-                if i < len(path) - 1:
-                    if path[i][-1] == path[i + 1][0]:
-                        continue
                 paths = [path[:i] + [list(_)] + path[i + 1:] for _ in unique_by_first_last(list(permutations(path[i])))]
                 shuffle(paths)
                 score = [len(list(groupby(flatten(raw_list)))) for raw_list in paths]
@@ -162,8 +165,6 @@ class ALNS:
             # two optimize
             for i in range(len(path) - 2):
                 paths = []
-                if (path[i][-1] == path[i + 1][0]) & (path[i + 1][-1] == path[i + 2][0]):
-                    continue
                 xx = unique_by_first_last(list(permutations(path[i])))
                 yy = unique_by_first_last(list(permutations(path[i + 1])))
                 for x in xx:
@@ -175,7 +176,11 @@ class ALNS:
                 path = paths[score.index(min(score))]
             score_after = len(list(groupby(flatten(path))))
             if score_before == score_after:
-                break
+                early_stop += 1
+                if early_stop == 10:
+                    break
+            else:
+                early_stop = 1
         return path
 
     def generate_path(self):
@@ -254,7 +259,7 @@ class ALNS:
                 np.minimum(np.min(x), 0.5),
                 4 * objective["switch"]["天窗"] + 2 * objective["switch"]["外色描述BAK"] +
                 objective["gap"]['双色车'] + objective["gap"]['石墨电池'] +
-                sum(objective["num"].values()),
+                sum(objective["num"].values()), np.minimum(objective["gap"]['小颜色'], 0.5),
                 objective["switch"]["车辆等级描述"] + objective["switch"]["电池特征"] + objective["gap"]['小颜色']]
 
     def local_search(self, date_id, car_id):
@@ -322,7 +327,7 @@ class ALNS:
             else:
                 self.early_stop[date_id] = 1
             self.score, self.path = out[-1]
-            print("Job %02d:" % self.plan_id, datetime.datetime.now().strftime("%H:%M:%S"), np.round(self.score, 3).tolist())
+            self.logs.append([str(self.plan_id), str(int(time.time() - ST))] + np.round(self.score, 5).astype(str).tolist())
 
     def result(self):
         df_summary = pd.DataFrame(self.group).iloc[flatten(self.path)].reset_index(drop=True)
